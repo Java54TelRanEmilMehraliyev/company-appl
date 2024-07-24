@@ -1,12 +1,15 @@
 package telran.employees;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import terlan.view.InputOutput;
 import terlan.view.Item;
 import terlan.view.SystemInputOutput;
+import static telran.employees.CompanyConfigProperties.*;
 
 //public void addEmployee(Employee empl) ;
 //public Employee getEmployee(long id) ;
@@ -20,9 +23,7 @@ import terlan.view.SystemInputOutput;
 public class CompanyApplItems {
 	static Company company;
 	static HashSet<String> departments;
-	
 
-	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public static List<Item> getCompanyItems(Company company, HashSet<String> departments) {
 		CompanyApplItems.company = company;
 		CompanyApplItems.departments = departments;
@@ -32,7 +33,8 @@ public class CompanyApplItems {
 				Item.of("display department budget", CompanyApplItems::getDepartmentBudget),
 				Item.of("display departments", CompanyApplItems::getDepartments),
 				Item.of("display managers with most factor", CompanyApplItems::getManagersWithMostFactor), };
-		return new ArrayList(List.of(items));
+		return new ArrayList<>(List.of(items));
+
 	}
 
 	static void addEmployee(InputOutput io) {
@@ -45,91 +47,83 @@ public class CompanyApplItems {
 		case "SalesPerson" -> getSalesPerson(empl, io);
 		default -> null;
 		};
-		try {
 		company.addEmployee(result);
 		io.writeLine("Employee has been added");
-	} catch (Exception ex) {
-		io.writeLine("Not success");		
 	}
-	}
+
 	private static Employee getSalesPerson(Employee empl, InputOutput io) {
 		WageEmployee wageEmployee = (WageEmployee) getWageEmployee(empl, io);
-		float percents = io.readNumberRange("Enter percents", "Wrong percents value", 0.5, 2).floatValue();
-		long sales = io.readNumberRange("Enter sales", "Wrong sales value", 500, 50000).longValue();
+		float percents = io.readNumberRange("Enter percents", "Wrong percents value", MIN_PERCENT, MAX_PERCENT)
+				.floatValue();
+		long sales = io.readNumberRange("Enter sales", "Wrong sales value", MIN_SALES, MAX_SALES).longValue();
 		return new SalesPerson(empl.getId(), empl.getBasicSalary(), empl.getDepartment(), wageEmployee.getHours(),
 				wageEmployee.getWage(), percents, sales);
 	}
 
 	private static Employee getManager(Employee empl, InputOutput io) {
 
-		float factor = io.readNumberRange("Enter factor", "Wrong factor value", 1.5, 5).floatValue();
+		float factor = io.readNumberRange("Enter factor", "Wrong factor value", MIN_FACTOR, MAX_FACTOR).floatValue();
 		return new Manager(empl.getId(), empl.getBasicSalary(), empl.getDepartment(), factor);
 	}
 
 	private static Employee getWageEmployee(Employee empl, InputOutput io) {
 
-		int hours = io.readNumberRange("Enter working hours", "Wrong hours value", 10, 200).intValue();
-		int wage = io.readNumberRange("Enter hour wage", "Wrong wage value", 100, 1000).intValue();
+		int hours = io.readNumberRange("Enter working hours", "Wrong hours value", MIN_HOURS, MAX_HOURS).intValue();
+		int wage = io.readNumberRange("Enter hour wage", "Wrong wage value", MIN_WAGE, MAX_WAGE).intValue();
 		;
 		return new WageEmployee(empl.getId(), empl.getBasicSalary(), empl.getDepartment(), hours, wage);
 	}
+
 	private static Employee readEmployee(InputOutput io) {
 
-		long id = io.readNumberRange("Enter id value", "Wrong id value", 1000, 10000).longValue();
-		int basicSalary = io.readNumberRange("Enter basic salary", "Wrong basic salary", 2000, 20000).intValue();
-		String department = io.readStringOptions("Enter department " + departments, "Wrong department", departments);
+		long id = readEmployeeId(io);
+		int basicSalary = io
+				.readNumberRange("Enter basic salary", "Wrong basic salary", MIN_BASIC_SALARY, MAX_BASIC_SALARY)
+				.intValue();
+		String department = readDepartment(io);
 		return new Employee(id, basicSalary, department);
 	}
 
+	private static String readDepartment(InputOutput io) {
+		return io.readStringOptions("Enter department " + departments, "Wrong department", departments);
+	}
+
+	private static long readEmployeeId(InputOutput io) {
+		return io.readNumberRange("Enter id value", "Wrong id value", MIN_ID, MAX_ID).longValue();
+	}
+
 	static void getEmployee(InputOutput io) {
-		long id = io.readObject("Enter employee ID", "Invalid ID", Long::parseLong);
-		Employee employee = company.getEmployee(id);
-		if (employee != null) {
-			io.writeLine("Employee" + employee.getId());
-		} else {
-			io.writeLine("No employee found with ID: " + id);
-		}
+		long id = readEmployeeId(io);
+		Employee empl = company.getEmployee(id);
+		String line = empl == null ? "no employee with the entered ID" : empl.getJSON();
+		io.writeLine(line);
 	}
 
 	static void removeEmployee(InputOutput io) {
-		long id = io.readObject("Empll ID to remove", "Invalid ID", Long::parseLong);
-		Employee removedEmployee = company.removeEmployee(id);
-		if (removedEmployee != null) {
-			io.writeLine("Empl with ID" + id + " has benn removed.");
-		} else {
-			io.writeLine("No employee found with ID: " + id);
-		}
+		long id = readEmployeeId(io);
+		Employee empl = company.removeEmployee(id);
+		io.writeLine(empl);
+		io.writeLine("has been removed from the company\n");
 	}
 
 	static void getDepartmentBudget(InputOutput io) {
-		String department = io.readStringOptions("Enter department name", "Invalid department name",
-				new HashSet<>(List.of(company.getDepartments())));
+		String department = readDepartment(io);
 		int budget = company.getDepartmentBudget(department);
-		io.writeLine("The budget for department " + department + " is: " + budget);
+		String line = budget == 0 ? "no employees woring in entered department"
+				: "Budget of enetered department is " + budget;
+		io.writeLine(line);
 	}
 
 	static void getDepartments(InputOutput io) {
-		String[] departmentsList = company.getDepartments();
-
-		if (departmentsList.length == 0) {
-			io.writeLine("No departments available.");
-			return;
-		}
-		io.writeLine("Departments:");
-		for (String department : departmentsList) {
-			io.writeLine(department);
-		}
+		String[] departments = company.getDepartments();
+		String line = departments.length == 0 ? "no employees" : String.join("\n", departments);
+		io.writeLine(line);
 	}
 
 	static void getManagersWithMostFactor(InputOutput io) {
-		 Manager[] managers = company.getManagersWithMostFactor();
-	        if (managers.length == 0) {
-	            io.writeLine("No managers found.");
-	        } else {
-	            io.writeLine("Managers with the most factor:");
-	            for (Manager manager : managers) {
-	                io.writeLine(manager);
-	            }
-	        }
-	    }
+		Manager[] managers = company.getManagersWithMostFactor();
+		String line = managers.length == 0 ? "no managers"
+				: Arrays.stream(managers).map(Employee::getJSON).collect(Collectors.joining("\n"));
+		io.writeLine(line);
 	}
+}
